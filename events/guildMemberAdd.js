@@ -18,5 +18,6 @@ module.exports = {
 
         // Find a channel named welcome and send the embed
         member.guild.channels.cache.find(c => c.id === "1278084764913373184").send({ embeds: [embed] });
+        
     }
 };
