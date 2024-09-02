@@ -8,7 +8,7 @@ module.exports = {
 
         // Create an embed to send in the channel
         const embed = new EmbedBuilder()
-            .setColor('#FF5733')  // Set a color for the embed
+            .setColor('#ff3b30')  // Set a color for the embed
             .setTitle('Vi ses igjen!')  // Title of the embed
             .setDescription(`Hade bra, ${member.user.username}!`)  // Custom goodbye message
             .setThumbnail(member.user.displayAvatarURL())  // User's avatar as the thumbnail
