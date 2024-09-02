@@ -37,17 +37,17 @@ commandSubFolders.forEach(folder => {
         bot.commands.set(props.config.name, props)
     }
 });
+
 // Load Event files from events folder
-const eventFiles = fs.readdirSync('./events/').filter(f => f.endsWith('.js'))
+const eventFiles = fs.readdirSync('./events/').filter(file => file.endsWith('.js'));
 for (const file of eventFiles) {
-    const event = require(`./events/${file}`)
-    if(event.once) {
-        bot.once(event.name, (...args) => event.execute(...args, bot))
+    const event = require(`./events/${file}`);
+    if (event.once) {
+        bot.once(event.name, (...args) => event.execute(...args, bot));
     } else {
-        bot.on(event.name, (...args) => event.execute(...args, bot))
+        bot.on(event.name, (...args) => event.execute(...args, bot));
     }
 }
-
 // Run when bot receives messageCreate event and then run checks to see if the message is a command
 bot.on("messageCreate", async message => {
     // Check if author is a bot or the message was sent in dms and return
