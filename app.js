@@ -16,6 +16,15 @@ const bot = new Client({
     ]
 });
 
+// import and connect to MongoDB
+const { connectToDatabase } = require('./dbclient');
+connectToDatabase();
+
+// define mongodb collections
+const users = connectToDatabase.db("BOT").collection("users");
+const events = connectToDatabase.db("BOT").collection("events");
+const permissions = connectToDatabase.db("BOT").collection("permissions");
+
 // Create a collection to store commands inside the bot object
 bot.commands = new Collection();
 
