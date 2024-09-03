@@ -1,6 +1,7 @@
 const { prefix, token } = require("./config.json");
 const fs = require("fs");
-const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
+const { connectToDatabase } = require('./dbclient.js');
 
 const bot = new Client({
     intents: [
@@ -16,15 +17,7 @@ const bot = new Client({
     ]
 });
 
-// Import and connect to MongoDB
-const { connectToDatabase } = require('./dbclient');
-
-let dbCollections;
-
 async function startBot() {
-    // Connect to the database and get the collections
-    dbCollections = await connectToDatabase();
-
     // Create a collection to store commands inside the bot object
     bot.commands = new Collection();
 
@@ -38,7 +31,6 @@ async function startBot() {
 
     // Get folders inside commands folder
     const commandSubFolders = fs.readdirSync('./commands/').filter(f => !f.endsWith('.js'));
-    // Load Command files from subfolders inside commands folder
     commandSubFolders.forEach(folder => {
         const commandFiles = fs.readdirSync(`./commands/${folder}/`).filter(f => f.endsWith('.js'));
         for (const file of commandFiles) {
@@ -53,29 +45,32 @@ async function startBot() {
     for (const file of eventFiles) {
         const event = require(`./events/${file}`);
         if (event.once) {
-            bot.once(event.name, (...args) => event.execute(...args, bot, dbCollections));
+            bot.once(event.name, (...args) => event.execute(...args, bot));
         } else {
-            bot.on(event.name, (...args) => event.execute(...args, bot, dbCollections));
+            bot.on(event.name, (...args) => event.execute(...args, bot));
         }
     }
 
-    // Run when bot receives messageCreate event and then run checks to see if the message is a command
+    // Connect to the database
+    const dbCollections = await connectToDatabase();
+
+    // Run when bot receives messageCreate event
     bot.on("messageCreate", async message => {
         // Check if author is a bot or the message was sent in dms and return
         if(message.author.bot) return;
         if(message.channel.type === "dm") return;
 
-        // Get prefix from config and prepare message so it is forwarded correctly to the command
+        // Get prefix from config and prepare message
         let messageArray = message.content.split(" ");
         let cmd = messageArray[0];
         let args = messageArray.slice(1);
 
-        // Check that the message starts with the prefix and return if it does not
+        // Check that the message starts with the prefix
         if(!cmd.startsWith(prefix)) return;
 
         // Get command from command collection and run it
         let commandfile = bot.commands.get(cmd.slice(prefix.length));
-        if(commandfile) commandfile.run(bot, message, args, dbCollections);
+        if(commandfile) commandfile.run(bot, message, args, dbCollections); // Pass dbCollections here
     });
 
     // Log in to Discord
