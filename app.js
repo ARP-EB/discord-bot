@@ -16,66 +16,71 @@ const bot = new Client({
     ]
 });
 
-// import and connect to MongoDB
+// Import and connect to MongoDB
 const { connectToDatabase } = require('./dbclient');
-connectToDatabase();
 
-// define mongodb collections
-const users = connectToDatabase.db("BOT").collection("users");
-const events = connectToDatabase.db("BOT").collection("events");
-const permissions = connectToDatabase.db("BOT").collection("permissions");
+let dbCollections;
 
-// Create a collection to store commands inside the bot object
-bot.commands = new Collection();
+async function startBot() {
+    // Connect to the database and get the collections
+    dbCollections = await connectToDatabase();
 
-// Load Command files from commands folder
-const commandFiles = fs.readdirSync('./commands/').filter(f => f.endsWith('.js'))
-for (const file of commandFiles) {
-    const props = require(`./commands/${file}`)
-    console.log(`${file} loaded`)
-    bot.commands.set(props.config.name, props)
-}
-// Get folders inside commands folder
-const commandSubFolders = fs.readdirSync('./commands/').filter(f => !f.endsWith('.js'))
-// Load Command files from subfolders inside commands folder
-commandSubFolders.forEach(folder => {
-    const commandFiles = fs.readdirSync(`./commands/${folder}/`).filter(f => f.endsWith('.js'))
+    // Create a collection to store commands inside the bot object
+    bot.commands = new Collection();
+
+    // Load Command files from commands folder
+    const commandFiles = fs.readdirSync('./commands/').filter(f => f.endsWith('.js'));
     for (const file of commandFiles) {
-        const props = require(`./commands/${folder}/${file}`)
-        console.log(`${file} loaded from ${folder}`)
-        bot.commands.set(props.config.name, props)
+        const props = require(`./commands/${file}`);
+        console.log(`${file} loaded`);
+        bot.commands.set(props.config.name, props);
     }
-});
 
-// Load Event files from events folder
-const eventFiles = fs.readdirSync('./events/').filter(file => file.endsWith('.js'));
-for (const file of eventFiles) {
-    const event = require(`./events/${file}`);
-    if (event.once) {
-        bot.once(event.name, (...args) => event.execute(...args, bot));
-    } else {
-        bot.on(event.name, (...args) => event.execute(...args, bot));
+    // Get folders inside commands folder
+    const commandSubFolders = fs.readdirSync('./commands/').filter(f => !f.endsWith('.js'));
+    // Load Command files from subfolders inside commands folder
+    commandSubFolders.forEach(folder => {
+        const commandFiles = fs.readdirSync(`./commands/${folder}/`).filter(f => f.endsWith('.js'));
+        for (const file of commandFiles) {
+            const props = require(`./commands/${folder}/${file}`);
+            console.log(`${file} loaded from ${folder}`);
+            bot.commands.set(props.config.name, props);
+        }
+    });
+
+    // Load Event files from events folder
+    const eventFiles = fs.readdirSync('./events/').filter(file => file.endsWith('.js'));
+    for (const file of eventFiles) {
+        const event = require(`./events/${file}`);
+        if (event.once) {
+            bot.once(event.name, (...args) => event.execute(...args, bot, dbCollections));
+        } else {
+            bot.on(event.name, (...args) => event.execute(...args, bot, dbCollections));
+        }
     }
+
+    // Run when bot receives messageCreate event and then run checks to see if the message is a command
+    bot.on("messageCreate", async message => {
+        // Check if author is a bot or the message was sent in dms and return
+        if(message.author.bot) return;
+        if(message.channel.type === "dm") return;
+
+        // Get prefix from config and prepare message so it is forwarded correctly to the command
+        let messageArray = message.content.split(" ");
+        let cmd = messageArray[0];
+        let args = messageArray.slice(1);
+
+        // Check that the message starts with the prefix and return if it does not
+        if(!cmd.startsWith(prefix)) return;
+
+        // Get command from command collection and run it
+        let commandfile = bot.commands.get(cmd.slice(prefix.length));
+        if(commandfile) commandfile.run(bot, message, args, dbCollections);
+    });
+
+    // Log in to Discord
+    bot.login(token);
 }
-// Run when bot receives messageCreate event and then run checks to see if the message is a command
-bot.on("messageCreate", async message => {
-    // Check if author is a bot or the message was sent in dms and return
-    if(message.author.bot) return;
-    if(message.channel.type === "dm") return;
 
-    // Get prefix from config and prepare message so it is forwarded correctly to the command
-    let messageArray = message.content.split(" ");
-    let cmd = messageArray[0];
-    let args = messageArray.slice(1);
-
-    // Check that the message starts with the prefix and return if it does not
-    if(!cmd.startsWith(prefix)) return;
-
-    // Get command from command collection and run it
-    let commandfile = bot.commands.get(cmd.slice(prefix.length));
-    if(commandfile) commandfile.run(bot,message,args);
-
-});
-
-// Token needed in config.json
-bot.login(token);
+// Start the bot
+startBot();
